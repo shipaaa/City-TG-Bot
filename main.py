@@ -13,17 +13,8 @@ from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher, filters
 from aiogram.utils import executor
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 bot_token = os.getenv("BOT_TOKEN")
-bot = Bot(token=bot_token)
-dp = Dispatcher(bot)
-
-json_obj = open('all_cities.json', 'r', encoding='utf-8')
-py_obj = json.load(json_obj)
-cities = [city['Город'].strip().lower().replace('ё', 'е').replace('-', ' ') for city in py_obj]
-
-global_list = []  # Список всех пользователей и их городов (В начале игры у определенного пользователя пуст)
+dp = Dispatcher(Bot(token=bot_token))
 
 
 @dp.message_handler(commands=['start'])
@@ -163,4 +154,11 @@ async def game_start(message: types.Message):
 
 
 if __name__ == '__main__':
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.INFO)
+
+    json_obj = open('all_cities.json', 'r', encoding='utf-8')
+    cities = [city['Город'].strip().lower().replace('ё', 'е').replace('-', ' ') for city in json.load(json_obj)]
+    global_list = []  # Список всех пользователей и их городов (В начале игры у определенного пользователя пуст)
+
     executor.start_polling(dp, skip_updates=True)
