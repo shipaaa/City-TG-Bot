@@ -5,18 +5,23 @@
                      / /    / /_/ /         / /___    _/ /    / /     / /          / /_/ / / /_/ /  / /
                     /_/     \____/          \____/   /___/   /_/     /_/          /_____/  \____/  /_/
 """
-import os
 import logging
-import json
+import os
 import random
+
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher, filters
 from aiogram.utils import executor
+from dotenv import load_dotenv
 
+from services.service import (check_last_char, cities, create_bot_city,
+                              find_new_char)
+
+load_dotenv()
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-bot_token = os.getenv("BOT_TOKEN")
+bot_token = os.environ.get('BOT_TOKEN')
 dp = Dispatcher(Bot(token=bot_token))
 
 
@@ -31,7 +36,7 @@ async def start_command(message: types.Message):
 
 
 @dp.message_handler(filters.Text(equals='Правила игры \U0001F4D6'))
-async def rules_btn(message: types.Message):
+async def rules_button(message: types.Message):
     """Правила игры при нажатии на кнопку"""
     a = 'Игра начинается с любого названия города 🏙'
     b = 'Каждый из участников игры по очереди называет реальный город, название которого начинается на букву, ' \
@@ -47,67 +52,36 @@ async def rules_btn(message: types.Message):
 
 
 @dp.message_handler(filters.Text(equals='Закончить игру 🔚'))
-async def end_game(message: types.Message):
-    """Очистка городов"""
+async def end_game_button(message: types.Message):
+    """Очистка городов при нажатии на кнопку"""
+    if end_game_condition(message.chat.id) is True:
+        await message.answer('Игра закончилась. Нажимай на кнопку 😉')
+    else:
+        await message.answer('Игра ещё не запущена. Нажми на кнопку 😇')
+
+
+def end_game_condition(chat_id: int) -> bool:
+    """Условие при котором игра считается завершенной"""
     global global_list
-    chat_id = message.chat.id
     new_global_list = []
     if len(global_list) != 0:
         for i in global_list:
             if i[0] != chat_id:
                 new_global_list.append(i)
         global_list = new_global_list
-        await message.answer('Игра закончилась. Нажимай на кнопку 😉')
+        return True
     else:
-        await message.answer('Игра ещё не запущена. Нажми на кнопку 😇')
+        return False
 
 
 def get_private_list_by_id(chat_id: int) -> list:
-    # Заполняем специальный приватный список только теми городами пользователя и бота, чьи chat id одинаковые. Все это
-    # делается ради многопоточности, чтобы много людей смогли играть одновременно без каких либо ошибок
-    private_list = []
-    for i in global_list:
-        if i[0] == chat_id:
-            private_list.append(i[1])
-    return private_list
+    """Заполняем специальный приватный список только теми городами пользователя и бота, чьи chat id одинаковые. Все это
+    делается ради многопоточности, чтобы много людей смогли играть одновременно без каких либо ошибок"""
+    return [i[1] for i in global_list if i[0] == chat_id]
 
 
-def find_new_char(word: str) -> str:
-    """Подбор последней буквы"""
-    for char in word[::-1]:
-        if char in ['ь', 'ъ', 'ы', 'й']:
-            continue
-        else:
-            break
-    return char
-
-
-def check_last_char(new_city: str, prev_cities: list):
-    """Проверка на последнюю букву и вывод ошибки если это нужно"""
-    if len(prev_cities) != 0:
-        prev_city = prev_cities[-1]
-        prev_city, new_city = prev_city.lower(), new_city.lower()
-        if new_city[0] != find_new_char(prev_city):
-            return find_new_char(prev_city).capitalize()
-        else:
-            return 'ok'
-    else:
-        return 'ok'
-
-
-def create_bot_city(city: str, private_cities: list) -> list:
-    """Подбор города для бота"""
-    random_bot_city_list = []
-    char = find_new_char(city)
-    for city in cities:
-        if city not in private_cities:
-            if city.startswith(char):
-                random_bot_city_list.append(city)
-    return random_bot_city_list
-
-
-def refresh(chat_id: int) -> list:
-    """Функция перезапуска если бот проиграл"""
+def refresh_bot(chat_id: int) -> list:
+    """Функция перезапуска если бот проиграл или если хотим начать заново"""
     global global_list
     new_global_list = []
     for i in global_list:
@@ -119,7 +93,7 @@ def refresh(chat_id: int) -> list:
 
 @dp.message_handler(filters.Text(equals=['Начать игру \U0001F3AE']))
 async def game_start(message: types.Message):
-    refresh(message.chat.id)
+    refresh_bot(message.chat.id)
     rnd_bt_ct = random.choice(cities)
     global_list.append([message.chat.id, rnd_bt_ct])
     await message.answer(
@@ -127,38 +101,37 @@ async def game_start(message: types.Message):
         parse_mode=types.ParseMode.HTML)
 
     @dp.message_handler()
-    async def game_continue(message: types.Message):
-        user_city = message.text.strip().lower().replace('ё', 'е').replace('-', ' ')
-        print(f'{message.from_user.username} / {message.text}')
+    async def game_continue(msg: types.Message):
+        user_city = msg.text.strip().lower().replace('ё', 'е').replace('-', ' ')
+        print(f'{msg.from_user.username} / {msg.text}')
 
         if user_city in cities:
-            private_cities = get_private_list_by_id(message.chat.id)
-            if check_last_char(user_city, private_cities) == 'ok':
+            private_cities = get_private_list_by_id(msg.chat.id)
+            if check_last_char(user_city, private_cities) is True:
                 if user_city not in private_cities:
-                    global_list.append([message.chat.id, user_city])
-                    b = create_bot_city(user_city, private_cities)
-                    if len(b) != 0:
-                        bot_city = random.choice(b)
-                        global_list.append([message.chat.id, bot_city])
-                        await message.answer(bot_city.title())
-                        list_for_print = [i for i in global_list if i[0] == message.chat.id]
-                        print(f'Username: {message.from_user.username} ⚡ / '
-                              f'Chat ID: {message.chat.id} / Cities: {list_for_print}')
+                    global_list.append([msg.chat.id, user_city])
+                    random_bot_cities_list = create_bot_city(user_city, private_cities)
+                    if len(random_bot_cities_list) != 0:
+                        bot_city = random.choice(random_bot_cities_list)
+                        global_list.append([msg.chat.id, bot_city])
+                        await msg.answer(bot_city.title())
+                        list_for_print = [i for i in global_list if i[0] == msg.chat.id]
+                        print(f'Username: {msg.from_user.username} ⚡ / '
+                              f'Chat ID: {msg.chat.id} / Cities: {list_for_print}')
                     else:
-                        await message.answer("Я не знаю больше городов на эту букву. Ты выиграл 😱")  # Вызываем Reset
-                        refresh(chat_id=message.chat.id)
+                        await msg.answer("Я не знаю больше городов на эту букву. Ты выиграл 😱")  # Вызываем Reset
+                        refresh_bot(chat_id=msg.chat.id)
                 else:
-                    await message.answer('Этот город уже был. Попробуй ещё раз 😌')
+                    await msg.answer('Этот город уже был. Попробуй ещё раз 😌')
             else:
-                await message.answer(f'Город должен начинаться на <b>"{check_last_char(user_city, private_cities)}"</b>'
-                                     , parse_mode=types.ParseMode.HTML)  # Город не на ту букву
+                await msg.answer(f'Город должен начинаться на <b>"{check_last_char(user_city, private_cities)}"</b>',
+                                 parse_mode=types.ParseMode.HTML)  # Город не на ту букву
         else:
-            await message.answer('Некорректный город, введите ещё раз 😕')  # Такого города нет в .json файле
+            await msg.answer('Некорректный город, введите ещё раз 😕')  # Такого города нет в .json файле
 
 
 if __name__ == '__main__':
-    json_obj = open('all_cities.json', 'r', encoding='utf-8')
-    cities = [city['Город'].strip().lower().replace('ё', 'е').replace('-', ' ') for city in json.load(json_obj)]
-    global_list = []  # Список всех пользователей и их городов (В начале игры у определенного пользователя пуст)
+    global_list: list = []
+    """Список всех пользователей и их городов (В начале игры у определенного пользователя пуст)"""
 
     executor.start_polling(dp, skip_updates=True)

@@ -136,3 +136,8 @@ dmypy.json
 
 # Scripts/
 Scripts/
+
+# dirs / files
+tests/
+
+.DS_Store
