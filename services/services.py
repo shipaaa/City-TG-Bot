@@ -1,4 +1,4 @@
-import ujson
+from models.models import get_cities_from_database
 
 
 def create_bot_city(city: str, private_cities: list) -> list:
@@ -37,5 +37,4 @@ def check_last_char(new_city: str, prev_cities: list) -> str | bool:
         return True
 
 
-json_obj = open('models/all_cities.json', 'r', encoding='utf-8')
-cities: list[str] = [city['Город'].strip().lower().replace('ё', 'е').replace('-', ' ') for city in ujson.load(json_obj)]
+cities = get_cities_from_database()
