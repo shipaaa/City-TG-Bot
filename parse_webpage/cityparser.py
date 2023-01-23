@@ -30,7 +30,7 @@ def main():
             all_dict = {'Город': city_elements, 'Регион': region_elements, 'Дата основания': date_elements}
             all_cities_ld.append(all_dict)
     print(all_cities_ld)
-    with open('all_cities.json', 'w', encoding='utf-8') as f:
+    with open('../models/all_cities.json', 'w', encoding='utf-8') as f:
         ujson.dump(all_cities_ld, f, indent=4, ensure_ascii=False)
 
 
