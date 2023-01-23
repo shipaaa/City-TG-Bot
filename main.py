@@ -8,19 +8,20 @@
 import logging
 import os
 import random
-import text_messages
 
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher, filters
 from aiogram.utils import executor
 from dotenv import load_dotenv
 
-from services.service import (check_last_char, cities, create_bot_city,
-                              find_new_char)
+from lexicon import lexicon_ru
+from services.services import (check_last_char, cities, create_bot_city,
+                               find_new_char)
 
 load_dotenv()
+
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 bot_token = os.environ.get('BOT_TOKEN')
 dp = Dispatcher(Bot(token=bot_token))
@@ -32,14 +33,13 @@ async def start_command(message: types.Message):
     buttons = ['Правила игры \U0001F4D6', 'Закончить игру 🔚', 'Начать игру \U0001F3AE']
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     keyboard.add(*buttons)
-    await message.answer(f'Привет, я бот для игры в города ✌🏻\nНажимай на кнопку и скорее начинай со мной играть 🤖',
-                         reply_markup=keyboard)
+    await message.answer(lexicon_ru.GREETINGS, reply_markup=keyboard)
 
 
 @dp.message_handler(filters.Text(equals='Правила игры \U0001F4D6'))
 async def rules_button(message: types.Message):
     """Правила игры при нажатии на кнопку"""
-    await message.answer(text_messages.rules,  parse_mode=types.ParseMode.HTML)
+    await message.answer(lexicon_ru.RULES, parse_mode=types.ParseMode.HTML)
 
 
 @dp.message_handler(filters.Text(equals='Закончить игру 🔚'))
