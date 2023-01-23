@@ -1,5 +1,5 @@
 CREATE TABLE city (
-  id INTEGER PRIMARY KEY,
+  id SERIAL PRIMARY KEY,
   city_name VARCHAR(200) not null,
   region VARCHAR(200),
   foundation_date VARCHAR(30)
